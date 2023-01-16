@@ -1,3 +1,7 @@
 mdj-diff
 
 bin
+
+# Added by cargo
+
+/target
