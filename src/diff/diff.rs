@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use crate::types::{ColumnLength::Num, ColumnLength::Str, ERDColumn, ERDEntity};
+use crate::types::{ERDColumn, ERDEntity};
 
 pub fn diff_tables(
     project_a: HashMap<String, ERDEntity>,
@@ -77,10 +77,10 @@ pub struct TableChange {
 
 #[derive(Debug)]
 pub struct Change {
-    name: String,
-    change_type: ChangeType,
-    value: String,
-    old: String,
+    pub name: String,
+    pub change_type: ChangeType,
+    pub value: String,
+    pub old: String,
 }
 
 #[derive(Debug)]
@@ -121,7 +121,7 @@ fn diff_entity(a: &ERDEntity, b: &ERDEntity) -> Option<TableChange> {
         tc.changes.push(c);
     }
 
-    // 	tc.Columns = diffColumns(a, b)
+    tc.columns = diff_columns(a, b);
     // 	tc.Relationships = diffRelationships(a, b)
     // 	tc.Tags = diffTags(a.GetTags(), b.GetTags())
 
@@ -159,7 +159,7 @@ fn whole_table_change(e: ERDEntity, change_type: ChangeType) -> TableChange {
         })
     }
 
-    for col in e.columns {
+    for col in e.columns.iter() {
         let cc = whole_column_change(col, change_type);
         tc.columns.push(cc);
     }
@@ -172,7 +172,7 @@ fn whole_table_change(e: ERDEntity, change_type: ChangeType) -> TableChange {
     tc
 }
 
-fn whole_column_change(c: ERDColumn, change_type: ChangeType) -> ColumnChange {
+fn whole_column_change(c: &ERDColumn, change_type: ChangeType) -> ColumnChange {
     let mut cc = ColumnChange {
         id: c.element._id.clone(),
         name: c.element.name.clone(),
@@ -188,20 +188,17 @@ fn whole_column_change(c: ERDColumn, change_type: ChangeType) -> ColumnChange {
     });
 
     // optional column fields
-    if let Some(d) = c.element.documentation {
+    if let Some(d) = &c.element.documentation {
         cc.changes.push(Change {
             name: String::from("documentation"),
             change_type,
-            value: d,
+            value: d.clone(),
             old: String::from(""),
         })
     }
 
-    if let Some(d) = c.length {
-        let val = match d {
-            Str(b) => b,
-            Num(e) => e.to_string(),
-        };
+    if let Some(d) = &c.length {
+        let val = d.to_string();
 
         cc.changes.push(Change {
             name: String::from("length"),
@@ -233,4 +230,91 @@ fn whole_column_change(c: ERDColumn, change_type: ChangeType) -> ColumnChange {
     }
 
     cc
+}
+
+fn diff_columns(a: &ERDEntity, b: &ERDEntity) -> Vec<ColumnChange> {
+    let mut changes: Vec<ColumnChange> = Vec::new();
+
+    // get column map
+    let a_columns = a.get_column_map();
+    let b_columns = b.get_column_map();
+
+    let mut existing_map: HashMap<String, bool> = HashMap::new();
+
+    for (id, a_col) in a_columns {
+        let b_col = b_columns.get(&id);
+        if let Some(b_col) = b_col {
+            existing_map.insert(id, true);
+
+            if let Some(cc) = diff_column(&a_col, b_col) {
+                changes.push(cc);
+            }
+        } else {
+            // new A column
+            let cc = whole_column_change(a_col, ChangeType::Add);
+            changes.push(cc);
+        }
+    }
+
+    for (id, b_col) in b_columns {
+        if existing_map.contains_key(&id) {
+            continue; // already been diffed
+        }
+
+        let cc = whole_column_change(b_col, ChangeType::Remove);
+        changes.push(cc);
+    }
+
+    changes
+}
+
+fn diff_column(a: &ERDColumn, b: &ERDColumn) -> Option<ColumnChange> {
+    let mut cc = ColumnChange {
+        id: a.element._id.clone(),
+        name: a.element.name.clone(),
+        change_type: ChangeType::Modify,
+        changes: Vec::new(),
+    };
+
+    compare(&mut cc, "name", &a.element.name, &b.element.name);
+    compare(
+        &mut cc,
+        "documentation",
+        &a.element.documentation,
+        &b.element.documentation,
+    );
+    compare(&mut cc, "type", &a.column_type, &b.column_type);
+    compare(&mut cc, "primaryKey", &a.primary_key, &b.primary_key);
+    compare(&mut cc, "foreignKey", &a.foreign_key, &b.foreign_key);
+    compare(&mut cc, "nullable", &a.nullable, &b.nullable);
+    compare(&mut cc, "unique", &a.unique, &b.unique);
+    compare(&mut cc, "length", &a.length, &b.length);
+
+    // for tags
+    // cc.Tags = diffTags(a.GetTags(), b.GetTags())
+
+    if cc.changes.len() == 0 {
+        // if len(cc.Changes)+len(cc.Tags) == 0 {
+        return None;
+    }
+
+    Some(cc)
+}
+
+fn compare<T>(cc: &mut ColumnChange, name: &str, a: &T, b: &T)
+where
+    T: std::fmt::Debug + std::cmp::PartialEq,
+{
+    if a == b {
+        return;
+    }
+
+    let c = Change {
+        name: name.to_string(),
+        change_type: ChangeType::Modify,
+        value: format!("{:#?}", a),
+        old: format!("{:#?}", b),
+    };
+
+    cc.changes.push(c);
 }

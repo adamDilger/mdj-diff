@@ -94,6 +94,18 @@ pub struct ERDEntity {
     pub columns: Vec<ERDColumn>,
 }
 
+impl ERDEntity {
+    pub fn get_column_map(&self) -> HashMap<String, &ERDColumn> {
+        let mut out: HashMap<String, &ERDColumn> = HashMap::new();
+
+        for c in self.columns.iter() {
+            out.insert(c.element._id.clone(), c);
+        }
+
+        out
+    }
+}
+
 #[derive(Deserialize, Debug)]
 pub struct ERDColumn {
     #[serde(flatten)]
@@ -115,11 +127,20 @@ pub struct ERDColumn {
     pub length: Option<ColumnLength>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, PartialEq)]
 #[serde(untagged)]
 pub enum ColumnLength {
     Str(String),
     Num(u32),
+}
+
+impl ColumnLength {
+    pub fn to_string(&self) -> String {
+        match self {
+            ColumnLength::Str(s) => s.clone(),
+            ColumnLength::Num(n) => n.to_string(),
+        }
+    }
 }
 
 #[derive(Deserialize, Debug)]
