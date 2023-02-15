@@ -85,7 +85,7 @@ fn diff_tables(project_a: HashMap<String, ERDEntity>, project_b: HashMap<String,
             Some(b_e) => {
                 existing_map.insert(key, true);
 
-                let tc = diff_entity(ele, b_e);
+                let tc = diff_entity(&ele, b_e);
 
                 match tc {
                     Some(tc) => {
@@ -148,7 +148,7 @@ struct Change {
     old: String,
 }
 
-fn diff_entity(a: ERDEntity, b: &ERDEntity) -> Option<TableChange> {
+fn diff_entity(a: &ERDEntity, b: &ERDEntity) -> Option<TableChange> {
     let mut tc = TableChange {
         id: a.element._id.clone(),
         name: a.element.name.clone(),
@@ -166,15 +166,20 @@ fn diff_entity(a: ERDEntity, b: &ERDEntity) -> Option<TableChange> {
         tc.changes.push(c);
     }
 
-    // 	if a.GetDocumentation() != b.GetDocumentation() {
-    // 		c := Change{Name: "documentation", Type: ChangeTypeModify, Value: a.GetDocumentation(), Old: b.GetDocumentation()}
-    // 		tc.Changes = append(tc.Changes, c)
-    // 	}
-    //
+    if a.element.documentation != b.element.documentation {
+        let c = Change {
+            name: String::from("documentation"),
+            change_type: ChangeType::Modify,
+            value: a.element.documentation.clone().unwrap_or(String::from("")),
+            old: b.element.documentation.clone().unwrap_or(String::from("")),
+        };
+        tc.changes.push(c);
+    }
+
     // 	tc.Columns = diffColumns(a, b)
     // 	tc.Relationships = diffRelationships(a, b)
     // 	tc.Tags = diffTags(a.GetTags(), b.GetTags())
-    //
+
     if tc.changes.len() == 0 {
         return None;
     }
