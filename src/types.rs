@@ -97,22 +97,22 @@ pub struct ERDEntity {
 #[derive(Deserialize, Debug)]
 pub struct ERDColumn {
     #[serde(flatten)]
-    element: Element,
+    pub element: Element,
 
     #[serde(rename = "type")]
-    column_type: String,
+    pub column_type: String,
 
     #[serde(rename = "referenceTo")]
-    reference_to: Option<Ref>,
+    pub reference_to: Option<Ref>,
     #[serde(rename = "primaryKey")]
-    primary_key: Option<bool>,
+    pub primary_key: Option<bool>,
     #[serde(rename = "foreignKey")]
-    foreign_key: Option<bool>,
+    pub foreign_key: Option<bool>,
 
-    nullable: Option<bool>,
-    unique: Option<bool>,
+    pub nullable: Option<bool>,
+    pub unique: Option<bool>,
 
-    length: Option<ColumnLength>,
+    pub length: Option<ColumnLength>,
 }
 
 #[derive(Deserialize, Debug)]

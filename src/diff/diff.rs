@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use crate::types::ERDEntity;
+use crate::types::{ColumnLength::Num, ColumnLength::Str, ERDColumn, ERDEntity};
 
 pub fn diff_tables(
     project_a: HashMap<String, ERDEntity>,
@@ -67,7 +67,7 @@ pub struct TableChange {
     pub id: String,
     pub change_type: ChangeType,
     pub name: String,
-    // columns    :  []ColumnChange,
+    pub columns: Vec<ColumnChange>,
     // relationships:[]RelationshipChange,
     pub changes: Vec<Change>,
     // tags      :   []TagChange,
@@ -83,12 +83,22 @@ pub struct Change {
     old: String,
 }
 
+#[derive(Debug)]
+pub struct ColumnChange {
+    pub id: String,
+    pub name: String,
+    pub change_type: ChangeType,
+    pub changes: Vec<Change>,
+    // pub tags: Vec<TagChange>,
+}
+
 fn diff_entity(a: &ERDEntity, b: &ERDEntity) -> Option<TableChange> {
     let mut tc = TableChange {
         id: a.element._id.clone(),
         name: a.element.name.clone(),
         change_type: ChangeType::Modify,
         changes: Vec::new(),
+        columns: Vec::new(),
     };
 
     if a.element.name != b.element.name {
@@ -115,7 +125,7 @@ fn diff_entity(a: &ERDEntity, b: &ERDEntity) -> Option<TableChange> {
     // 	tc.Relationships = diffRelationships(a, b)
     // 	tc.Tags = diffTags(a.GetTags(), b.GetTags())
 
-    if tc.changes.len() == 0 {
+    if tc.changes.len() + tc.columns.len() == 0 {
         return None;
     }
     // 		len(tc.Columns)+
@@ -136,6 +146,7 @@ fn whole_table_change(e: ERDEntity, change_type: ChangeType) -> TableChange {
         name: e.element.name.clone(),
         change_type,
         changes: Vec::new(),
+        columns: Vec::new(),
     };
 
     // optional table fields
@@ -148,10 +159,10 @@ fn whole_table_change(e: ERDEntity, change_type: ChangeType) -> TableChange {
         })
     }
 
-    // for _, col := range e.Columns {
-    // 	cc := wholeColumnChange(col, changeType)
-    // 	tc.Columns = append(tc.Columns, cc)
-    // }
+    for col in e.columns {
+        let cc = whole_column_change(col, change_type);
+        tc.columns.push(cc);
+    }
 
     // for _, tag := range e.Tags {
     // 	cc := wholeTagChange(tag, changeType)
@@ -159,4 +170,67 @@ fn whole_table_change(e: ERDEntity, change_type: ChangeType) -> TableChange {
     // }
 
     tc
+}
+
+fn whole_column_change(c: ERDColumn, change_type: ChangeType) -> ColumnChange {
+    let mut cc = ColumnChange {
+        id: c.element._id.clone(),
+        name: c.element.name.clone(),
+        change_type,
+        changes: Vec::new(),
+    };
+
+    cc.changes.push(Change {
+        name: String::from("type"),
+        value: c.column_type.clone(),
+        old: String::from(""),
+        change_type,
+    });
+
+    // optional column fields
+    if let Some(d) = c.element.documentation {
+        cc.changes.push(Change {
+            name: String::from("documentation"),
+            change_type,
+            value: d,
+            old: String::from(""),
+        })
+    }
+
+    if let Some(d) = c.length {
+        let val = match d {
+            Str(b) => b,
+            Num(e) => e.to_string(),
+        };
+
+        cc.changes.push(Change {
+            name: String::from("length"),
+            change_type,
+            value: val,
+            old: String::from(""),
+        })
+    }
+
+    if let Some(p) = c.primary_key {
+        if p {
+            cc.changes.push(Change {
+                name: String::from("primaryKey"),
+                change_type,
+                value: String::from("true"),
+                old: String::from(""),
+            })
+        }
+    }
+    if let Some(f) = c.foreign_key {
+        if f {
+            cc.changes.push(Change {
+                name: String::from("foreignKey"),
+                change_type,
+                value: String::from("true"),
+                old: String::from(""),
+            })
+        }
+    }
+
+    cc
 }
