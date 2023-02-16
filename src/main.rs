@@ -14,5 +14,7 @@ fn main() {
     let project_two: Project = Project::from_git(None, path, cwd);
     // println!("{:#?}", project_two.name);
 
-    diff_tables(project_one.get_entity_map(), project_two.get_entity_map());
+    let ok = diff_tables(project_one.get_entity_map(), project_two.get_entity_map());
+
+    println!("{:#?}", ok);
 }

@@ -104,6 +104,20 @@ impl ERDEntity {
 
         out
     }
+
+    pub fn get_relationship_map(&self) -> HashMap<String, &ERDRelationship> {
+        let mut out: HashMap<String, &ERDRelationship> = HashMap::new();
+
+        if let Some(oe) = &self.element.owned_elements {
+            for c in oe.iter() {
+                if let Node::ERDRelationship(c) = c {
+                    out.insert(c._id.clone(), c);
+                }
+            }
+        }
+
+        out
+    }
 }
 
 #[derive(Deserialize, Debug)]
@@ -156,35 +170,45 @@ pub struct Element {
 
 #[derive(Deserialize, Debug)]
 pub struct ERDRelationship {
-    _id: String,
-    _parent: Ref,
-    name: Option<String>,
+    pub _id: String,
+    pub _parent: Ref,
+    pub name: Option<String>,
 
-    documentation: Option<String>,
+    pub documentation: Option<String>,
 
-    end1: ERDRelationshipEnd,
-    end2: ERDRelationshipEnd,
+    pub end1: ERDRelationshipEnd,
+    pub end2: ERDRelationshipEnd,
 }
 
 #[derive(Deserialize, Debug)]
 pub struct ERDRelationshipEnd {
-    _id: String,
-    _parent: Ref,
-    reference: Ref,
-    cardinality: String,
+    pub _id: String,
+    pub _parent: Ref,
+    pub reference: Ref,
+    pub cardinality: String,
+}
+
+impl ERDRelationshipEnd {
+    pub fn get_cardinality(&self) -> String {
+        if self.cardinality == "" {
+            return String::from("1");
+        }
+
+        self.cardinality.clone()
+    }
 }
 
 #[derive(Deserialize, Debug)]
 pub struct Ref {
     #[serde(rename = "$ref")]
-    _ref: String,
+    pub _ref: String,
 }
 
 #[derive(Deserialize, Debug)]
 pub struct Tag {
-    kind: String,
-    value: String,
+    pub kind: String,
+    pub value: String,
 
     #[serde(flatten)]
-    element: Element,
+    pub element: Element,
 }

@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use crate::types::{ERDColumn, ERDEntity};
+use crate::types::{ERDColumn, ERDEntity, ERDRelationship};
 
 pub fn diff_tables(
     project_a: HashMap<String, ERDEntity>,
@@ -22,7 +22,6 @@ pub fn diff_tables(
 
                 match tc {
                     Some(tc) => {
-                        println!("{:#?}", tc);
                         table_changes.push(tc);
                     }
                     None => (),
@@ -46,11 +45,7 @@ pub fn diff_tables(
         table_changes.push(tc);
     }
 
-    // TODO: sorted?
     table_changes.sort_by(|a, b| a.name.cmp(&b.name));
-    // sort.Slice(tableChanges, func(i, j int) bool {
-    // 	return tableChanges[i].Name < tableChanges[j].Name
-    // })
 
     table_changes
 }
@@ -68,7 +63,7 @@ pub struct TableChange {
     pub change_type: ChangeType,
     pub name: String,
     pub columns: Vec<ColumnChange>,
-    // relationships:[]RelationshipChange,
+    relationships: Vec<RelationshipChange>,
     pub changes: Vec<Change>,
     // tags      :   []TagChange,
     // data_model: Node,
@@ -92,6 +87,19 @@ pub struct ColumnChange {
     // pub tags: Vec<TagChange>,
 }
 
+#[derive(Debug)]
+pub struct RelationshipChange {
+    id: String,
+    name: String,
+    change_type: ChangeType,
+    end1_cardinality: Option<Change>,
+    end2_cardinality: Option<Change>,
+    end1_reference: Option<Change>,
+    end2_reference: Option<Change>,
+    changes: Vec<Change>,
+    // tags            []TagChange
+}
+
 fn diff_entity(a: &ERDEntity, b: &ERDEntity) -> Option<TableChange> {
     let mut tc = TableChange {
         id: a.element._id.clone(),
@@ -99,6 +107,7 @@ fn diff_entity(a: &ERDEntity, b: &ERDEntity) -> Option<TableChange> {
         change_type: ChangeType::Modify,
         changes: Vec::new(),
         columns: Vec::new(),
+        relationships: Vec::new(),
     };
 
     if a.element.name != b.element.name {
@@ -122,14 +131,12 @@ fn diff_entity(a: &ERDEntity, b: &ERDEntity) -> Option<TableChange> {
     }
 
     tc.columns = diff_columns(a, b);
-    // 	tc.Relationships = diffRelationships(a, b)
+    tc.relationships = diff_relationships(a, b);
     // 	tc.Tags = diffTags(a.GetTags(), b.GetTags())
 
-    if tc.changes.len() + tc.columns.len() == 0 {
+    if tc.changes.len() + tc.columns.len() + tc.relationships.len() == 0 {
         return None;
     }
-    // 		len(tc.Columns)+
-    // 		len(tc.Relationships)+
     // 		len(tc.Tags) == 0 {
     // 		return nil
     // 	}
@@ -147,6 +154,7 @@ fn whole_table_change(e: ERDEntity, change_type: ChangeType) -> TableChange {
         change_type,
         changes: Vec::new(),
         columns: Vec::new(),
+        relationships: Vec::new(),
     };
 
     // optional table fields
@@ -317,4 +325,164 @@ where
     };
 
     cc.changes.push(c);
+}
+
+fn diff_relationships(a: &ERDEntity, b: &ERDEntity) -> Vec<RelationshipChange> {
+    let mut changes: Vec<RelationshipChange> = Vec::new();
+
+    // get relationship map
+    let a_rels = a.get_relationship_map();
+    let b_rels = b.get_relationship_map();
+
+    let mut existing_map: HashMap<String, bool> = HashMap::new();
+
+    for (id, a_rel) in a_rels {
+        let b_rel = b_rels.get(&id);
+        if let Some(b_rel) = b_rel {
+            existing_map.insert(id, true);
+            if let Some(r) = diff_relationship(a_rel, b_rel) {
+                changes.push(r);
+            }
+        } else {
+            // new A Relationhsip
+            let r = whole_relationship_change(a_rel, ChangeType::Add);
+            changes.push(r);
+        }
+    }
+
+    for (id, b_rel) in b_rels.iter() {
+        if existing_map.contains_key(id) {
+            continue; // already been diffed
+        }
+
+        let r = whole_relationship_change(b_rel, ChangeType::Remove);
+        changes.push(r);
+    }
+
+    changes
+}
+
+fn diff_relationship(a: &ERDRelationship, b: &ERDRelationship) -> Option<RelationshipChange> {
+    let mut r = RelationshipChange {
+        id: a._id.clone(),
+        name: a.end2.reference._ref.clone(),
+        change_type: ChangeType::Modify,
+        end1_cardinality: None,
+        end2_cardinality: None,
+        end1_reference: None,
+        end2_reference: None,
+        changes: Vec::new(),
+    };
+
+    let mut change = false;
+
+    if a.end1.get_cardinality() != b.end1.get_cardinality() {
+        change = true;
+        r.end1_cardinality = Some(Change {
+            name: String::from("end1.cardinality"),
+            change_type: ChangeType::Modify,
+            value: a.end1.get_cardinality(),
+            old: b.end1.get_cardinality(),
+        });
+    }
+
+    if a.end2.get_cardinality() != b.end2.get_cardinality() {
+        change = true;
+        r.end2_cardinality = Some(Change {
+            name: String::from("end2.cardinality"),
+            change_type: ChangeType::Modify,
+            value: a.end2.get_cardinality(),
+            old: b.end2.get_cardinality(),
+        });
+    }
+
+    if a.end1.reference._ref != b.end1.reference._ref {
+        change = true;
+        r.end1_reference = Some(Change {
+            name: String::from("end1.reference"),
+            change_type: ChangeType::Modify,
+            value: a.end1.reference._ref.clone(),
+            old: b.end1.reference._ref.clone(),
+        });
+    }
+
+    if a.end2.reference._ref != b.end2.reference._ref {
+        change = true;
+        r.end2_reference = Some(Change {
+            name: String::from("end2.reference"),
+            change_type: ChangeType::Modify,
+            value: a.end2.reference._ref.clone(),
+            old: b.end2.reference._ref.clone(),
+        });
+    }
+
+    if a.documentation != b.documentation {
+        change = true;
+        r.changes.push(Change {
+            name: String::from("documentation"),
+            change_type: ChangeType::Modify,
+            value: a.documentation.clone().unwrap_or(String::from("")),
+            old: b.documentation.clone().unwrap_or(String::from("")),
+        });
+    }
+
+    // 	r.Tags = diffTags(a.GetTags(), b.GetTags())
+
+    // optional relationship fields
+    // if !change && r.rags) == 0 {
+    if !change {
+        return None;
+    }
+
+    Some(r)
+}
+
+fn whole_relationship_change(c: &ERDRelationship, change_type: ChangeType) -> RelationshipChange {
+    let mut r = RelationshipChange {
+        id: c._id.clone(),
+        name: c.end2.reference._ref.clone(),
+        change_type,
+        end1_cardinality: None,
+        end2_cardinality: None,
+        end1_reference: None,
+        end2_reference: None,
+        changes: Vec::new(),
+    };
+
+    r.end1_cardinality = Some(Change {
+        name: String::from("end1.cardinality"),
+        change_type,
+        value: c.end1.get_cardinality(),
+        old: String::from(""),
+    });
+    r.end2_cardinality = Some(Change {
+        name: String::from("end2.cardinality"),
+        change_type,
+        value: c.end2.get_cardinality(),
+        old: String::from(""),
+    });
+    r.end1_reference = Some(Change {
+        name: String::from("end1.reference"),
+        change_type,
+        value: c.end1.reference._ref.clone(),
+        old: String::from(""),
+    });
+    r.end2_reference = Some(Change {
+        name: String::from("end2.reference"),
+        change_type,
+        value: c.end2.reference._ref.clone(),
+        old: String::from(""),
+    });
+
+    // optional relationship fields
+    if let Some(d) = &c.documentation {
+        r.changes.push(Change {
+            name: String::from("documentation"),
+            change_type,
+            value: d.clone(),
+            old: String::from(""),
+        });
+    }
+
+    r
 }
