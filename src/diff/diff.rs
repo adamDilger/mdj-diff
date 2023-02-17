@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use crate::types::{ERDColumn, ERDEntity, ERDRelationship};
+use crate::types::{ERDColumn, ERDEntity, ERDRelationship, Tag};
 
 pub fn diff_tables(
     project_a: HashMap<String, ERDEntity>,
@@ -63,11 +63,11 @@ pub struct TableChange {
     pub change_type: ChangeType,
     pub name: String,
     pub columns: Vec<ColumnChange>,
-    relationships: Vec<RelationshipChange>,
+    pub relationships: Vec<RelationshipChange>,
     pub changes: Vec<Change>,
-    // tags      :   []TagChange,
-    // data_model: Node,
-    // diagram: Node,
+    pub tags: Vec<TagChange>,
+    // pub data_model: Node,
+    // pub diagram: Node,
 }
 
 #[derive(Debug)]
@@ -78,13 +78,23 @@ pub struct Change {
     pub old: String,
 }
 
+trait Changes {
+    fn get_changes(&mut self) -> &mut Vec<Change>;
+}
+
 #[derive(Debug)]
 pub struct ColumnChange {
     pub id: String,
     pub name: String,
     pub change_type: ChangeType,
     pub changes: Vec<Change>,
-    // pub tags: Vec<TagChange>,
+    pub tags: Vec<TagChange>,
+}
+
+impl Changes for ColumnChange {
+    fn get_changes(&mut self) -> &mut Vec<Change> {
+        &mut self.changes
+    }
 }
 
 #[derive(Debug)]
@@ -97,7 +107,21 @@ pub struct RelationshipChange {
     end1_reference: Option<Change>,
     end2_reference: Option<Change>,
     changes: Vec<Change>,
-    // tags            []TagChange
+    tags: Vec<TagChange>,
+}
+
+#[derive(Debug)]
+pub struct TagChange {
+    pub id: String,
+    pub name: String,
+    pub change_type: ChangeType,
+    pub changes: Vec<Change>,
+}
+
+impl Changes for TagChange {
+    fn get_changes(&mut self) -> &mut Vec<Change> {
+        &mut self.changes
+    }
 }
 
 fn diff_entity(a: &ERDEntity, b: &ERDEntity) -> Option<TableChange> {
@@ -108,6 +132,7 @@ fn diff_entity(a: &ERDEntity, b: &ERDEntity) -> Option<TableChange> {
         changes: Vec::new(),
         columns: Vec::new(),
         relationships: Vec::new(),
+        tags: Vec::new(),
     };
 
     if a.element.name != b.element.name {
@@ -132,17 +157,11 @@ fn diff_entity(a: &ERDEntity, b: &ERDEntity) -> Option<TableChange> {
 
     tc.columns = diff_columns(a, b);
     tc.relationships = diff_relationships(a, b);
-    // 	tc.Tags = diffTags(a.GetTags(), b.GetTags())
+    tc.tags = diff_tags(&a.element.tags, &b.element.tags);
 
-    if tc.changes.len() + tc.columns.len() + tc.relationships.len() == 0 {
+    if tc.changes.len() + tc.columns.len() + tc.relationships.len() + tc.tags.len() == 0 {
         return None;
     }
-    // 		len(tc.Tags) == 0 {
-    // 		return nil
-    // 	}
-    //
-    // 	return tc
-    //
 
     Some(tc)
 }
@@ -155,6 +174,7 @@ fn whole_table_change(e: ERDEntity, change_type: ChangeType) -> TableChange {
         changes: Vec::new(),
         columns: Vec::new(),
         relationships: Vec::new(),
+        tags: Vec::new(),
     };
 
     // optional table fields
@@ -172,10 +192,10 @@ fn whole_table_change(e: ERDEntity, change_type: ChangeType) -> TableChange {
         tc.columns.push(cc);
     }
 
-    // for _, tag := range e.Tags {
-    // 	cc := wholeTagChange(tag, changeType)
-    // 	tc.Tags = append(tc.Tags, cc)
-    // }
+    for tag in e.element.tags.iter() {
+        let cc = whole_tag_change(tag, change_type);
+        tc.tags.push(cc);
+    }
 
     tc
 }
@@ -186,6 +206,7 @@ fn whole_column_change(c: &ERDColumn, change_type: ChangeType) -> ColumnChange {
         name: c.element.name.clone(),
         change_type,
         changes: Vec::new(),
+        tags: Vec::new(),
     };
 
     cc.changes.push(Change {
@@ -282,6 +303,7 @@ fn diff_column(a: &ERDColumn, b: &ERDColumn) -> Option<ColumnChange> {
         name: a.element.name.clone(),
         change_type: ChangeType::Modify,
         changes: Vec::new(),
+        tags: Vec::new(),
     };
 
     compare(&mut cc, "name", &a.element.name, &b.element.name);
@@ -299,17 +321,16 @@ fn diff_column(a: &ERDColumn, b: &ERDColumn) -> Option<ColumnChange> {
     compare(&mut cc, "length", &a.length, &b.length);
 
     // for tags
-    // cc.Tags = diffTags(a.GetTags(), b.GetTags())
+    cc.tags = diff_tags(&a.element.tags, &b.element.tags);
 
-    if cc.changes.len() == 0 {
-        // if len(cc.Changes)+len(cc.Tags) == 0 {
+    if cc.changes.len() + cc.tags.len() == 0 {
         return None;
     }
 
     Some(cc)
 }
 
-fn compare<T>(cc: &mut ColumnChange, name: &str, a: &T, b: &T)
+fn compare<T>(cc: &mut impl Changes, name: &str, a: &T, b: &T)
 where
     T: std::fmt::Debug + std::cmp::PartialEq,
 {
@@ -324,7 +345,7 @@ where
         old: format!("{:#?}", b),
     };
 
-    cc.changes.push(c);
+    cc.get_changes().push(c);
 }
 
 fn diff_relationships(a: &ERDEntity, b: &ERDEntity) -> Vec<RelationshipChange> {
@@ -372,6 +393,7 @@ fn diff_relationship(a: &ERDRelationship, b: &ERDRelationship) -> Option<Relatio
         end1_reference: None,
         end2_reference: None,
         changes: Vec::new(),
+        tags: Vec::new(),
     };
 
     let mut change = false;
@@ -426,11 +448,10 @@ fn diff_relationship(a: &ERDRelationship, b: &ERDRelationship) -> Option<Relatio
         });
     }
 
-    // 	r.Tags = diffTags(a.GetTags(), b.GetTags())
+    r.tags = diff_tags(&a.tags, &b.tags);
 
     // optional relationship fields
-    // if !change && r.rags) == 0 {
-    if !change {
+    if !change && r.tags.len() == 0 {
         return None;
     }
 
@@ -447,6 +468,7 @@ fn whole_relationship_change(c: &ERDRelationship, change_type: ChangeType) -> Re
         end1_reference: None,
         end2_reference: None,
         changes: Vec::new(),
+        tags: Vec::new(),
     };
 
     r.end1_cardinality = Some(Change {
@@ -485,4 +507,106 @@ fn whole_relationship_change(c: &ERDRelationship, change_type: ChangeType) -> Re
     }
 
     r
+}
+
+fn diff_tags(a: &Vec<Tag>, b: &Vec<Tag>) -> Vec<TagChange> {
+    let mut changes: Vec<TagChange> = Vec::new();
+
+    // get tag map
+    let a_tags = a
+        .iter()
+        .map(|t| (t.element.name.clone(), t))
+        .collect::<HashMap<String, &Tag>>();
+
+    let b_tags = b
+        .iter()
+        .map(|t| (t.element.name.clone(), t))
+        .collect::<HashMap<String, &Tag>>();
+
+    let mut existing_map: HashMap<String, bool> = HashMap::new();
+
+    for (id, a_tag) in a_tags {
+        if let Some(b_tag) = b_tags.get(&id) {
+            existing_map.insert(id.clone(), true);
+            if let Some(tc) = diff_tag(a_tag, b_tag) {
+                changes.push(tc);
+            }
+        } else {
+            // new A Tag
+            let tc = whole_tag_change(a_tag, ChangeType::Add);
+            changes.push(tc);
+        }
+    }
+
+    for (id, b_tag) in b_tags.iter() {
+        if existing_map.contains_key(id) {
+            continue; // already been diffed
+        }
+
+        let tc = whole_tag_change(b_tag, ChangeType::Remove);
+        changes.push(tc);
+    }
+
+    changes
+}
+
+fn diff_tag(a: &Tag, b: &Tag) -> Option<TagChange> {
+    let mut cc = TagChange {
+        id: a.element._id.clone(),
+        name: a.element.name.clone(),
+        change_type: ChangeType::Modify,
+        changes: Vec::new(),
+    };
+
+    compare(&mut cc, "name", &a.element.name, &b.element.name);
+    compare(
+        &mut cc,
+        "documentation",
+        &a.element.documentation,
+        &b.element.documentation,
+    );
+    compare(&mut cc, "kind", &a.kind, &b.kind);
+    compare(&mut cc, "value", &a.value, &b.value);
+
+    if cc.changes.len() == 0 {
+        return None;
+    }
+
+    Some(cc)
+}
+
+fn whole_tag_change(c: &Tag, change_type: ChangeType) -> TagChange {
+    let mut cc = TagChange {
+        id: c.element._id.clone(),
+        name: c.element.name.clone(),
+        change_type,
+        changes: Vec::new(),
+    };
+
+    if let Some(d) = &c.element.documentation {
+        cc.changes.push(Change {
+            name: String::from("documentation"),
+            change_type,
+            value: d.clone(),
+            old: String::from(""),
+        });
+    }
+
+    if let Some(v) = &c.value {
+        cc.changes.push(Change {
+            name: String::from("value"),
+            change_type,
+            value: v.clone(),
+            old: String::from(""),
+        });
+    }
+
+    cc.changes.push(Change {
+        name: String::from("kind"),
+        change_type,
+        value: c.kind.clone(),
+        old: String::from(""),
+    });
+
+    cc
 }

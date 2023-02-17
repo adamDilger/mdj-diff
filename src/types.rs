@@ -71,6 +71,25 @@ pub enum Node {
     ERDRelationship(ERDRelationship),
 }
 
+impl Node {
+    pub fn get_tag_map(&self) -> HashMap<String, &Tag> {
+        let mut out: HashMap<String, &Tag> = HashMap::new();
+
+        let tags = match self {
+            Node::ERDDataModel(e) => &e.element.tags,
+            Node::ERDDiagram(e) => &e.element.tags,
+            Node::ERDEntity(e) => &e.element.tags,
+            Node::ERDRelationship(e) => &e.tags,
+        };
+
+        for t in tags.iter() {
+            out.insert(t.element.name.clone(), t);
+        }
+
+        out
+    }
+}
+
 #[derive(Deserialize, Debug)]
 pub struct ERDDataModel {
     #[serde(flatten)]
@@ -164,8 +183,15 @@ pub struct Element {
     pub name: String,
     pub documentation: Option<String>,
 
+    #[serde(default = "default_tags")]
+    pub tags: Vec<Tag>,
+
     #[serde(rename = "ownedElements")]
     pub owned_elements: Option<Vec<Node>>,
+}
+
+fn default_tags() -> Vec<Tag> {
+    Vec::new()
 }
 
 #[derive(Deserialize, Debug)]
@@ -173,6 +199,9 @@ pub struct ERDRelationship {
     pub _id: String,
     pub _parent: Ref,
     pub name: Option<String>,
+
+    #[serde(default = "default_tags")]
+    pub tags: Vec<Tag>,
 
     pub documentation: Option<String>,
 
@@ -207,7 +236,7 @@ pub struct Ref {
 #[derive(Deserialize, Debug)]
 pub struct Tag {
     pub kind: String,
-    pub value: String,
+    pub value: Option<String>,
 
     #[serde(flatten)]
     pub element: Element,
