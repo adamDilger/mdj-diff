@@ -45,14 +45,16 @@ impl Project {
         project
     }
 
-    pub fn get_entity_map(self) -> HashMap<String, ERDEntity> {
-        let mut entities: HashMap<String, ERDEntity> = HashMap::new();
+    pub fn get_entity_map(&self) -> HashMap<String, &ERDEntity> {
+        let mut entities: HashMap<String, &ERDEntity> = HashMap::new();
 
-        for ele in self.owned_elements {
+        for ele in self.owned_elements.iter() {
             if let Node::ERDDataModel(data_model) = ele {
-                for ele in data_model.element.owned_elements.unwrap() {
-                    if let Node::ERDEntity(entity) = ele {
-                        entities.insert(entity.element._id.clone(), entity);
+                if let Some(oe) = &data_model.element.owned_elements {
+                    for ele in oe.iter() {
+                        if let Node::ERDEntity(entity) = ele {
+                            entities.insert(entity.element._id.clone(), entity);
+                        }
                     }
                 }
             }

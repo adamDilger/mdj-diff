@@ -2,11 +2,13 @@
 
 use std::collections::HashMap;
 
+use colored::Colorize;
+
 use crate::types::{ERDColumn, ERDEntity, ERDRelationship, Tag};
 
 pub fn diff_tables(
-    project_a: HashMap<String, ERDEntity>,
-    project_b: HashMap<String, ERDEntity>,
+    project_a: HashMap<String, &ERDEntity>,
+    project_b: HashMap<String, &ERDEntity>,
 ) -> Vec<TableChange> {
     let mut existing_map: HashMap<String, bool> = HashMap::new();
     let mut table_changes: Vec<TableChange> = Vec::new();
@@ -55,6 +57,24 @@ pub enum ChangeType {
     Add,
     Remove,
     Modify,
+}
+
+impl ChangeType {
+    pub fn to_string(self) -> String {
+        match self {
+            Self::Add => String::from("Add"),
+            Self::Remove => String::from("Remove"),
+            Self::Modify => String::from("Modify"),
+        }
+    }
+
+    pub fn print_color(self, input: &str) -> String {
+        match self {
+            Self::Add => input.green().to_string(),
+            Self::Remove => input.red().to_string(),
+            Self::Modify => input.yellow().to_string(),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -166,7 +186,7 @@ fn diff_entity(a: &ERDEntity, b: &ERDEntity) -> Option<TableChange> {
     Some(tc)
 }
 
-fn whole_table_change(e: ERDEntity, change_type: ChangeType) -> TableChange {
+fn whole_table_change(e: &ERDEntity, change_type: ChangeType) -> TableChange {
     let mut tc = TableChange {
         id: e.element._id.clone(),
         name: e.element.name.clone(),
@@ -178,7 +198,7 @@ fn whole_table_change(e: ERDEntity, change_type: ChangeType) -> TableChange {
     };
 
     // optional table fields
-    if let Some(d) = e.element.documentation {
+    if let Some(d) = &e.element.documentation {
         tc.changes.push(Change {
             name: String::from("documentation"),
             change_type,
