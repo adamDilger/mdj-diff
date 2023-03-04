@@ -1,12 +1,11 @@
 package diff
 
 import (
-	"fmt"
 	"mdj-diff/types"
 )
 
-func diffColumns(a types.Entity, b types.Entity) []ColumnChange {
-	var changes []ColumnChange
+func diffColumns(a types.Entity, b types.Entity) []BaseChange {
+	var changes []BaseChange
 
 	// get column map
 	aColumns := a.GetColumnMap()
@@ -39,15 +38,12 @@ func diffColumns(a types.Entity, b types.Entity) []ColumnChange {
 	return changes
 }
 
-func diffColumn(a types.Column, b types.Column) *ColumnChange {
-	cc := &ColumnChange{Id: a.Id, Name: a.GetName(), Type: ChangeTypeModify}
+func diffColumn(a types.Column, b types.Column) *BaseChange {
+	cc := &BaseChange{Id: a.Id, Name: a.Name, Type: ChangeTypeModify}
 
-	fields := []struct {
-		name string
-		a, b interface{}
-	}{
-		{"name", a.GetName(), b.GetName()},
-		{"documentation", a.GetDocumentation(), b.GetDocumentation()},
+	fields := []fieldDiff{
+		{"name", a.Name, b.Name},
+		{"documentation", a.Documentation, b.Documentation},
 		{"type", a.Type, b.Type},
 		{"primaryKey", a.PrimaryKey, b.PrimaryKey},
 		{"foreignKey", a.ForeignKey, b.ForeignKey},
@@ -56,19 +52,8 @@ func diffColumn(a types.Column, b types.Column) *ColumnChange {
 		{"length", a.Length, b.Length},
 	}
 
-	for _, f := range fields {
-		if f.a != f.b {
-			cc.Changes = append(cc.Changes, Change{
-				Name:  f.name,
-				Type:  ChangeTypeModify,
-				Value: fmt.Sprintf("%v", f.a),
-				Old:   fmt.Sprintf("%v", f.b),
-			})
-		}
-	}
-
-	// for tags
-	cc.Tags = diffTags(a.GetTags(), b.GetTags())
+	cc.Changes = diffFields(fields)
+	cc.Tags = diffTags(a.Tags, b.Tags)
 
 	if len(cc.Changes)+len(cc.Tags) == 0 {
 		return nil
@@ -77,26 +62,22 @@ func diffColumn(a types.Column, b types.Column) *ColumnChange {
 	return cc
 }
 
-func wholeColumnChange(c types.Column, changeType ChangeType) ColumnChange {
-	cc := ColumnChange{Id: c.Id, Name: c.GetName(), Type: changeType}
+func wholeColumnChange(c types.Column, changeType ChangeType) BaseChange {
+	cc := BaseChange{Id: c.Id, Name: c.Name, Type: changeType}
 
 	cc.Changes = append(cc.Changes, Change{Name: "type", Type: changeType, Value: c.Type})
 
-	// optional column fields
-	if c.GetDocumentation() != "" {
-		cc.Changes = append(cc.Changes, Change{Name: "documentation", Type: changeType, Value: c.GetDocumentation()})
+	fields := []fieldDiff{
+		{"name", c.Name, ""},
+		{"documentation", c.Documentation, ""},
+		{"primaryKey", c.PrimaryKey, false},
+		{"foreignKey", c.ForeignKey, false},
+		{"nullable", c.Nullable, false},
+		{"unique", c.Unique, false},
+		{"length", string(c.Length), ""},
 	}
 
-	if c.Length != "" {
-		cc.Changes = append(cc.Changes, Change{Name: "length", Type: changeType, Value: string(c.Length)})
-	}
-
-	if c.PrimaryKey {
-		cc.Changes = append(cc.Changes, Change{Name: "primaryKey", Type: changeType, Value: true})
-	}
-	if c.ForeignKey {
-		cc.Changes = append(cc.Changes, Change{Name: "foreignKey", Type: changeType, Value: true})
-	}
+	cc.Changes = diffFieldsWithType(fields, changeType)
 
 	return cc
 }

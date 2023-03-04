@@ -5,6 +5,22 @@ import (
 	"io"
 )
 
+type Base struct {
+	Id            string      `json:"_id"`
+	Name          string      `json:"name"`
+	Parent        Ref         `json:"_parent"`
+	OwnedElements ElementList `json:"ownedElements"`
+	Tags          []Tag       `json:"tags"`
+	Documentation string      `json:"documentation"`
+}
+
+func (b *Base) GetId() string                 { return b.Id }
+func (b *Base) GetName() string               { return b.Name }
+func (b *Base) GetParent() Ref                { return b.Parent }
+func (b *Base) GetOwnedElements() ElementList { return b.OwnedElements }
+func (b *Base) GetTags() []Tag                { return b.Tags }
+func (b *Base) GetDocumentation() string      { return b.Documentation }
+
 type Node interface {
 	GetNodeType() string
 	GetId() string
@@ -20,13 +36,7 @@ type ElementList []Node
 var _ Node = (*Project)(nil)
 
 type Project struct {
-	Id            string `json:"_id"`
-	Name          string `json:"name"`
-	OwnedElements ElementList
-	Parent        Ref    `json:"_parent"`
-	Tags          []Tag  `json:"tags"`
-	Documentation string `json:"documentation"`
-
+	Base
 	RefLookup map[string]Node
 	diagrams  []Node
 }
@@ -55,13 +65,7 @@ func NewProjectFromJson(in io.Reader) (*Project, error) {
 	return project, nil
 }
 
-func (p *Project) GetNodeType() string           { return "Project" }
-func (p *Project) GetId() string                 { return p.Id }
-func (p *Project) GetName() string               { return p.Name }
-func (p *Project) GetOwnedElements() ElementList { return p.OwnedElements }
-func (p *Project) GetParent() Ref                { return p.Parent }
-func (p *Project) GetTags() []Tag                { return p.Tags }
-func (p *Project) GetDocumentation() string      { return p.Documentation }
+func (p *Project) GetNodeType() string { return "Project" }
 
 func (p *Project) GetTableMap() map[string]Entity {
 	out := make(map[string]Entity)
@@ -71,7 +75,7 @@ func (p *Project) GetTableMap() map[string]Entity {
 		if en, ok := e.(*Entity); ok {
 			out[e.GetId()] = *en
 		} else {
-			panic(e.GetName() + "is not an entity")
+			panic(e.GetId() + "is not an entity")
 		}
 	}
 
@@ -99,22 +103,11 @@ func findElements(el ElementList, typ string, nodes *[]Node) []Node {
 }
 
 type Element struct {
-	N_type        string `json:"_type"`
-	Id            string `json:"_id"`
-	Name          string
-	OwnedElements ElementList
-	Parent        Ref `json:"_parent"`
-	Tags          []Tag
-	Documentation string
+	Base
+	N_type string `json:"_type"`
 }
 
-func (e *Element) GetNodeType() string           { return e.N_type }
-func (e *Element) GetId() string                 { return e.Id }
-func (e *Element) GetName() string               { return e.Name }
-func (e *Element) GetOwnedElements() ElementList { return e.OwnedElements }
-func (e *Element) GetParent() Ref                { return e.Parent }
-func (e *Element) GetTags() []Tag                { return e.Tags }
-func (e *Element) GetDocumentation() string      { return e.Documentation }
+func (e *Element) GetNodeType() string { return e.N_type }
 
 func (e *ElementList) UnmarshalJSON(data []byte) error {
 	var allElements []*json.RawMessage

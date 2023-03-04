@@ -20,23 +20,12 @@ const (
 var _ Node = (*Entity)(nil)
 
 type Entity struct {
-	Id            string `json:"_id"`
-	Name          string
-	OwnedElements ElementList
-	Parent        Ref `json:"_parent"`
-	Tags          []Tag
-	Documentation string
-
+	Base
 	Columns []Column
 }
 
-func (e *Entity) GetNodeType() string           { return ENTITY }
-func (e *Entity) GetId() string                 { return e.Id }
-func (e *Entity) GetName() string               { return e.Name }
-func (e *Entity) GetOwnedElements() ElementList { return e.OwnedElements }
-func (e *Entity) GetParent() Ref                { return e.Parent }
-func (e *Entity) GetTags() []Tag                { return e.Tags }
-func (e *Entity) GetDocumentation() string      { return e.Documentation }
+func (e *Entity) GetNodeType() string { return ENTITY }
+
 func (e *Entity) GetColumnMap() map[string]Column {
 	out := make(map[string]Column)
 
@@ -74,32 +63,16 @@ type Ref struct {
 var _ Node = (*Diagram)(nil)
 
 type Diagram struct {
-	Id            string `json:"_id"`
-	Name          string
-	OwnedElements ElementList
-	Parent        Ref `json:"_parent"`
-	Tags          []Tag
-	Documentation string
-
+	Base
 	DefaultDiagram bool `json:"defaultDiagram"`
 }
 
-func (d *Diagram) GetNodeType() string           { return DIAGRAM }
-func (d *Diagram) GetId() string                 { return d.Id }
-func (d *Diagram) GetName() string               { return d.Name }
-func (d *Diagram) GetOwnedElements() ElementList { return d.OwnedElements }
-func (d *Diagram) GetParent() Ref                { return d.Parent }
-func (d *Diagram) GetTags() []Tag                { return d.Tags }
-func (d *Diagram) GetDocumentation() string      { return d.Documentation }
+func (d *Diagram) GetNodeType() string { return DIAGRAM }
 
 var _ Node = (*Column)(nil)
 
 type Column struct {
-	Id            string `json:"_id"`
-	Name          string
-	Parent        Ref `json:"_parent"`
-	Tags          []Tag
-	Documentation string
+	Base
 
 	Type        string
 	ReferenceTo Ref
@@ -110,13 +83,7 @@ type Column struct {
 	Length      ColumnLength
 }
 
-func (c *Column) GetNodeType() string           { return COLUMN }
-func (c *Column) GetId() string                 { return c.Id }
-func (c *Column) GetName() string               { return c.Name }
-func (c *Column) GetOwnedElements() ElementList { return nil }
-func (c *Column) GetParent() Ref                { return c.Parent }
-func (c *Column) GetTags() []Tag                { return c.Tags }
-func (c *Column) GetDocumentation() string      { return c.Documentation }
+func (c *Column) GetNodeType() string { return COLUMN }
 
 type ColumnLength string
 
@@ -141,22 +108,12 @@ func (c *ColumnLength) UnmarshalJSON(b []byte) error {
 var _ Node = (*Relationship)(nil)
 
 type Relationship struct {
-	Id            string `json:"_id"`
-	Parent        Ref    `json:"_parent"`
-	Tags          []Tag
-	Documentation string
-
+	Base
 	End1 RelationshipEnd
 	End2 RelationshipEnd
 }
 
-func (r *Relationship) GetNodeType() string           { return RELATIONSHIP }
-func (r *Relationship) GetId() string                 { return r.Id }
-func (r *Relationship) GetName() string               { return r.Parent.Ref }
-func (r *Relationship) GetOwnedElements() ElementList { return nil }
-func (r *Relationship) GetParent() Ref                { return r.Parent }
-func (r *Relationship) GetTags() []Tag                { return r.Tags }
-func (r *Relationship) GetDocumentation() string      { return r.Documentation }
+func (r *Relationship) GetNodeType() string { return RELATIONSHIP }
 
 type RelationshipEnd struct {
 	Id          string `json:"_id"`

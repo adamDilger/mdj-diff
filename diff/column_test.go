@@ -6,8 +6,8 @@ import (
 )
 
 func TestDiffColumnWithNoChanges(t *testing.T) {
-	a := types.Column{Id: "1", Name: "HELLO", Type: "INTEGER", Documentation: "doc"}
-	b := types.Column{Id: "1", Name: "HELLO", Type: "INTEGER", Documentation: "doc"}
+	a := types.Column{Base: types.Base{Id: "1", Name: "HELLO", Documentation: "doc"}, Type: "INTEGER"}
+	b := types.Column{Base: types.Base{Id: "1", Name: "HELLO", Documentation: "doc"}, Type: "INTEGER"}
 
 	cc := diffColumn(a, b)
 	if cc != nil {
@@ -16,8 +16,8 @@ func TestDiffColumnWithNoChanges(t *testing.T) {
 }
 
 func TestDiffColumnModifyAttributes(t *testing.T) {
-	a := types.Column{Id: "1", Name: "HELLO", Type: "INTEGER", Documentation: "doc"}
-	b := types.Column{Id: "1", Name: "OTHER_TABLE", Type: "HELLO", Documentation: "doc1"}
+	a := types.Column{Base: types.Base{Id: "1", Name: "HELLO", Documentation: "doc"}, Type: "INTEGER"}
+	b := types.Column{Base: types.Base{Id: "1", Name: "OTHER_TABLE", Documentation: "doc1"}, Type: "HELLO"}
 
 	cc := diffColumn(a, b)
 	if len(cc.Changes) != 3 {
@@ -69,8 +69,8 @@ func TestDiffColumnModifyAttributes(t *testing.T) {
 
 func TestDiffColumnAddTag(t *testing.T) {
 	tag := types.Tag{Name: "tag1", Value: "value1"}
-	a := types.Column{Id: "1", Tags: []types.Tag{tag}}
-	b := types.Column{Id: "1"}
+	a := types.Column{Base: types.Base{Id: "1", Tags: []types.Tag{tag}}}
+	b := types.Column{Base: types.Base{Id: "1"}}
 
 	cc := diffColumn(a, b)
 	if len(cc.Changes) != 0 {

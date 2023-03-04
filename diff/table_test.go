@@ -6,8 +6,8 @@ import (
 )
 
 func TestDiffEntityAttributeChange(t *testing.T) {
-	b := types.Entity{Name: "name", Documentation: "doc"}
-	a := types.Entity{Name: b.Name + "_updated", Documentation: b.Documentation + "_updated"}
+	b := types.Entity{Base: types.Base{Name: "name", Documentation: "doc"}}
+	a := types.Entity{Base: types.Base{Name: b.Name + "_updated", Documentation: b.Documentation + "_updated"}}
 
 	tc := diffEntity(a, b)
 	if len(tc.Changes) != 2 {
@@ -39,8 +39,8 @@ func TestDiffEntityAttributeChange(t *testing.T) {
 }
 
 func TestDiffEntityAddColumn(t *testing.T) {
-	existingCol := types.Column{Id: "1", Name: "HELLO"}
-	newCol := types.Column{Id: "2", Name: "OTHER_TABLE", Type: "HELLO"}
+	existingCol := types.Column{Base: types.Base{Id: "1", Name: "HELLO"}}
+	newCol := types.Column{Base: types.Base{Id: "2", Name: "OTHER_TABLE"}, Type: "HELLO"}
 	b := types.Entity{Columns: []types.Column{existingCol}}
 	a := types.Entity{Columns: []types.Column{existingCol, newCol}}
 
@@ -69,8 +69,8 @@ func TestDiffEntityAddColumn(t *testing.T) {
 }
 
 func TestDiffEntityRemoveColumn(t *testing.T) {
-	existingCol := types.Column{Id: "1", Name: "HELLO"}
-	removeCol := types.Column{Id: "2", Name: "OTHER_TABLE", Type: "HELLO"}
+	existingCol := types.Column{Base: types.Base{Id: "1", Name: "HELLO"}}
+	removeCol := types.Column{Base: types.Base{Id: "2", Name: "OTHER_TABLE"}, Type: "HELLO"}
 	b := types.Entity{Columns: []types.Column{existingCol, removeCol}}
 	a := types.Entity{Columns: []types.Column{existingCol}}
 
@@ -99,8 +99,8 @@ func TestDiffEntityRemoveColumn(t *testing.T) {
 }
 
 func TestDiffEntityAddTag(t *testing.T) {
-	existingCol := types.Column{Id: "1", Name: "HELLO"}
-	colWithTag := types.Column{Id: "1", Name: "HELLO", Tags: []types.Tag{{Id: "123", Name: "Unique"}}}
+	existingCol := types.Column{Base: types.Base{Id: "1", Name: "HELLO"}}
+	colWithTag := types.Column{Base: types.Base{Id: "1", Name: "HELLO", Tags: []types.Tag{{Id: "123", Name: "Unique"}}}}
 	b := types.Entity{Columns: []types.Column{existingCol}}
 	a := types.Entity{Columns: []types.Column{colWithTag}}
 
@@ -125,8 +125,8 @@ func TestDiffEntityAddTag(t *testing.T) {
 }
 
 func TestDiffEntityRemoveTag(t *testing.T) {
-	existingCol := types.Column{Id: "1", Name: "HELLO"}
-	colWithTag := types.Column{Id: "1", Name: "HELLO", Tags: []types.Tag{{Id: "123", Name: "Unique", Value: "true"}}}
+	existingCol := types.Column{Base: types.Base{Id: "1", Name: "HELLO"}}
+	colWithTag := types.Column{Base: types.Base{Id: "1", Name: "HELLO", Tags: []types.Tag{{Id: "123", Name: "Unique", Value: "true"}}}}
 	b := types.Entity{Columns: []types.Column{colWithTag}}
 	a := types.Entity{Columns: []types.Column{existingCol}}
 

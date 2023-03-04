@@ -7,44 +7,31 @@ import (
 	"github.com/jedib0t/go-pretty/v6/text"
 )
 
+type BaseChange struct {
+	Id      string
+	Type    ChangeType
+	Name    string
+	Changes []Change
+	Tags    []BaseChange
+}
+
 type TableChange struct {
-	Id            string
-	Type          ChangeType
-	Name          string
-	Columns       []ColumnChange
+	BaseChange
+
+	Columns       []BaseChange
 	Relationships []RelationshipChange
-	Changes       []Change
-	Tags          []TagChange
 
 	DataModel *types.Node
 	Diagram   *types.Node
 }
 
-type ColumnChange struct {
-	Id      string
-	Name    string
-	Type    ChangeType
-	Changes []Change
-	Tags    []TagChange
-}
-
 type RelationshipChange struct {
-	Id              string
-	Name            string
-	Type            ChangeType
+	BaseChange
+
 	End1Cardinality *Change
 	End2Cardinality *Change
 	End1Reference   *Change
 	End2Reference   *Change
-	Changes         []Change
-	Tags            []TagChange
-}
-
-type TagChange struct {
-	Id      string
-	Name    string
-	Type    ChangeType
-	Changes []Change
 }
 
 type Change struct {
@@ -55,6 +42,7 @@ type Change struct {
 }
 
 type RelationshipEndChange struct {
+	// TODO
 }
 
 type ChangeType string

@@ -68,7 +68,7 @@ func printTableAttributes(p printer, change diff.TableChange) {
 	renderChanges(p, "", change.Changes)
 }
 
-func printColumnChanges(p printer, column diff.ColumnChange) {
+func printColumnChanges(p printer, column diff.BaseChange) {
 	renderChanges(p, column.Name, column.Changes)
 
 	if len(column.Tags) > 0 {
@@ -163,7 +163,8 @@ func getNameForRef(A, B *types.Project, name string, t diff.ChangeType) string {
 	}
 
 	if n == nil {
-		return name
+		return ""
 	}
+
 	return n.GetName()
 }

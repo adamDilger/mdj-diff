@@ -39,39 +39,20 @@ func diffRelationships(a types.Entity, b types.Entity) []RelationshipChange {
 }
 
 func diffRelationship(a types.Relationship, b types.Relationship) *RelationshipChange {
-	r := &RelationshipChange{Name: a.End2.Reference.Ref, Type: ChangeTypeModify}
+	r := &RelationshipChange{BaseChange: BaseChange{Name: a.End2.Reference.Ref, Type: ChangeTypeModify}}
 
-	change := false
-
-	if a.End1.GetCardinality() != b.End1.GetCardinality() {
-		change = true
-		r.End1Cardinality = &Change{Name: "end1.cardinality", Type: ChangeTypeModify, Value: a.End1.GetCardinality(), Old: b.End1.GetCardinality()}
+	fields := []fieldDiff{
+		{"documentation", a.Documentation, b.Documentation},
+		{"end1.cardinality", a.End1.GetCardinality(), b.End1.GetCardinality()},
+		{"end2.cardinality", a.End2.GetCardinality(), b.End2.GetCardinality()},
+		{"end1.reference", a.End1.Reference.Ref, b.End1.Reference.Ref},
+		{"end2.reference", a.End2.Reference.Ref, b.End2.Reference.Ref},
 	}
 
-	if a.End2.GetCardinality() != b.End2.GetCardinality() {
-		change = true
-		r.End2Cardinality = &Change{Name: "end2.cardinality", Type: ChangeTypeModify, Value: a.End2.GetCardinality(), Old: b.End2.GetCardinality()}
-	}
+	r.Changes = diffFields(fields)
+	r.Tags = diffTags(a.Tags, b.Tags)
 
-	if a.End1.Reference.Ref != b.End1.Reference.Ref {
-		change = true
-		r.End1Reference = &Change{Name: "end1.reference", Type: ChangeTypeModify, Value: a.End1.Reference.Ref, Old: b.End1.Reference.Ref}
-	}
-
-	if a.End2.Reference.Ref != b.End2.Reference.Ref {
-		change = true
-		r.End2Reference = &Change{Name: "end2.reference", Type: ChangeTypeModify, Value: a.End2.Reference.Ref, Old: b.End2.Reference.Ref}
-	}
-
-	if a.GetDocumentation() != b.GetDocumentation() {
-		change = true
-		r.Changes = append(r.Changes, Change{Name: "documentation", Type: ChangeTypeModify, Value: a.GetDocumentation(), Old: b.GetDocumentation()})
-	}
-
-	r.Tags = diffTags(a.GetTags(), b.GetTags())
-
-	// optional relationship fields
-	if !change && len(r.Tags) == 0 {
+	if len(r.Changes)+len(r.Tags) == 0 {
 		return nil
 	}
 
@@ -79,7 +60,7 @@ func diffRelationship(a types.Relationship, b types.Relationship) *RelationshipC
 }
 
 func wholeRelationshipChange(c types.Relationship, changeType ChangeType) RelationshipChange {
-	r := RelationshipChange{Name: c.End2.Reference.Ref, Type: changeType}
+	r := RelationshipChange{BaseChange: BaseChange{Name: c.End2.Reference.Ref, Type: changeType}}
 
 	r.End1Cardinality = &Change{Name: "end1.cardinality", Type: changeType, Value: c.End1.GetCardinality()}
 	r.End2Cardinality = &Change{Name: "end2.cardinality", Type: changeType, Value: c.End2.GetCardinality()}
@@ -87,8 +68,8 @@ func wholeRelationshipChange(c types.Relationship, changeType ChangeType) Relati
 	r.End2Reference = &Change{Name: "end2.reference", Type: changeType, Value: c.End2.Reference.Ref}
 
 	// optional relationship fields
-	if c.GetDocumentation() != "" {
-		r.Changes = append(r.Changes, Change{Name: "documentation", Type: changeType, Value: c.GetDocumentation()})
+	if c.Documentation != "" {
+		r.Changes = append(r.Changes, Change{Name: "documentation", Type: changeType, Value: c.Documentation})
 	}
 
 	return r

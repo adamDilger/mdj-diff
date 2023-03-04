@@ -1,12 +1,11 @@
 package diff
 
 import (
-	"fmt"
 	"mdj-diff/types"
 )
 
-func diffTags(a []types.Tag, b []types.Tag) []TagChange {
-	var changes []TagChange
+func diffTags(a []types.Tag, b []types.Tag) []BaseChange {
+	var changes []BaseChange
 
 	// get column map
 	aTags := types.GetTagMap(a)
@@ -39,29 +38,17 @@ func diffTags(a []types.Tag, b []types.Tag) []TagChange {
 	return changes
 }
 
-func diffTag(a types.Tag, b types.Tag) *TagChange {
-	cc := &TagChange{Id: a.Id, Name: a.Name, Type: ChangeTypeModify}
+func diffTag(a types.Tag, b types.Tag) *BaseChange {
+	cc := &BaseChange{Id: a.Id, Name: a.Name, Type: ChangeTypeModify}
 
-	fields := []struct {
-		name string
-		a, b interface{}
-	}{
+	fields := []fieldDiff{
 		{"name", a.Name, b.Name},
 		{"documentation", a.Documentation, b.Documentation},
 		{"kind", a.Kind, b.Kind},
 		{"value", a.Value, b.Value},
 	}
 
-	for _, f := range fields {
-		if f.a != f.b {
-			cc.Changes = append(cc.Changes, Change{
-				Name:  f.name,
-				Type:  ChangeTypeModify,
-				Value: fmt.Sprintf("%v", f.a),
-				Old:   fmt.Sprintf("%v", f.b),
-			})
-		}
-	}
+	cc.Changes = diffFields(fields)
 
 	if len(cc.Changes) == 0 {
 		return nil
@@ -70,21 +57,16 @@ func diffTag(a types.Tag, b types.Tag) *TagChange {
 	return cc
 }
 
-func wholeTagChange(c types.Tag, changeType ChangeType) TagChange {
-	cc := TagChange{Id: c.Id, Name: c.Name, Type: changeType}
+func wholeTagChange(c types.Tag, changeType ChangeType) BaseChange {
+	cc := BaseChange{Id: c.Id, Name: c.Name, Type: changeType}
 
-	// optional column fields
-	if c.Documentation != "" {
-		cc.Changes = append(cc.Changes, Change{Name: "documentation", Type: changeType, Value: c.Documentation})
+	fields := []fieldDiff{
+		{"documentation", c.Documentation, ""},
+		{"value", c.Value, ""},
+		{"kind", c.Kind, ""},
 	}
 
-	if c.Value != "" {
-		cc.Changes = append(cc.Changes, Change{Name: "value", Type: changeType, Value: c.Value})
-	}
-
-	if c.Kind != "" {
-		cc.Changes = append(cc.Changes, Change{Name: "kind", Type: changeType, Value: c.Kind})
-	}
+	cc.Changes = diffFieldsWithType(fields, changeType)
 
 	return cc
 }
